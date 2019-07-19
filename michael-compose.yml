@@ -1,0 +1,178 @@
+
+[root@guru-itg compose]# cat docker-compose.yml
+version: '2'
+services:
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.2.0
+    container_name: kib01
+    volumes:
+      - "./kibana.yml:/etc/kibana/kibana.yml"
+    restart: always
+    ports:
+      - "5601:5601"
+    links:
+      - elasticsearch
+    depends_on:
+      - elasticsearch
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.2.0
+    container_name: es01
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - "esdata01:/usr/share/elasticsearch/data"
+    ports:
+      - "9200:9200"
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.2.0
+    container_name: lsh01
+    volumes:
+      - "./logstash.conf:/etc/logstash/logstash.conf"
+    restart: always
+    command: logstash -f /etc/logstash/logstash.conf
+    ports:
+      - "9600:9600"
+      - "7777:7777"
+    links:
+      - elasticsearch
+      - kafka1
+      - kafka2
+      - kafka3
+  kafka1:
+    image: wurstmeister/kafka
+    container_name: kaf01
+    depends_on:
+      - zoo1
+      - zoo2
+      - zoo3
+    links:
+      - zoo1
+      - zoo2
+      - zoo3
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://:9092"
+      KAFKA_LOG_RETENTION_HOURS: "168"
+      KAFKA_LOG_RETENTION_BYTES: "100000000"
+      KAFKA_ZOOKEEPER_CONNECT:  zoo1:2181,zoo2:2181,zoo3:2181
+      KAFKA_CREATE_TOPICS: "t_log:3:3"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+  kafka2:
+    image: wurstmeister/kafka
+    container_name: kaf02
+    depends_on:
+      - zoo1
+      - zoo2
+      - zoo3
+    links:
+      - zoo1
+      - zoo2
+      - zoo3
+    ports:
+      - "9093:9092"
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://:9092"
+      KAFKA_LOG_RETENTION_HOURS: "168"
+      KAFKA_LOG_RETENTION_BYTES: "100000000"
+      KAFKA_ZOOKEEPER_CONNECT:  zoo1:2181,zoo2:2181,zoo3:2181
+      KAFKA_CREATE_TOPICS: "t_log:3:3"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+  kafka3:
+    image: wurstmeister/kafka
+    container_name: kaf03
+    depends_on:
+      - zoo1
+      - zoo2
+      - zoo3
+    links:
+      - zoo1
+      - zoo2
+      - zoo3
+    ports:
+      - "9094:9092"
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://:9092"
+      KAFKA_LOG_RETENTION_HOURS: "168"
+      KAFKA_LOG_RETENTION_BYTES: "100000000"
+      KAFKA_ZOOKEEPER_CONNECT:  zoo1:2181,zoo2:2181,zoo3:2181
+      KAFKA_CREATE_TOPICS: "t_log:3:3"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+  zoo1:
+    image: elevy/zookeeper:latest
+    container_name: zkp01
+    environment:
+      MYID: 1
+      SERVERS: zoo1,zoo2,zoo3
+    ports:
+      - "2181:2181"
+  zoo2:
+    image: elevy/zookeeper:latest
+    container_name: zkp02
+    environment:
+      MYID: 2
+      SERVERS: zoo1,zoo2,zoo3
+    ports:
+      - "2182:2181"
+  zoo3:
+    image: elevy/zookeeper:latest
+    container_name: zkp03
+    environment:
+      MYID: 3
+      SERVERS: zoo1,zoo2,zoo3
+    ports:
+      - "2183:2181"
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:7.2.0
+    user: root
+    container_name: fb01
+    mem_limit: 1g
+    command: filebeat -e -strict.perms=false
+    volumes:
+      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml
+      - apalog01:/apache-logs
+      - fbdata:/usr/share/filebeat/data
+    links:
+      - kafka1
+      - kafka2
+      - kafka3
+    depends_on:
+      - apache
+      - kafka1
+      - kafka2
+      - kafka3
+  apache:
+    image: centos/httpd-24-centos7
+    user: root
+    container_name: apa01
+    environment:
+      HTTPD_LOG_TO_VOLUME: 1
+    volumes:
+      - "apalog01:/var/log/httpd24"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - logstash
+volumes:
+  esdata01:
+    driver: local
+  apalog01:
+    driver: local
+  fbdata:
+    driver: local
