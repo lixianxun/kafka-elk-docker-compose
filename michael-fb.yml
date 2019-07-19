@@ -1,0 +1,15 @@
+[root@guru-itg compose]# cat filebeat.yml
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - /apache-logs/*_log
+  fields_under_root: true
+
+output.kafka:
+  hosts: ["kafka1:9092", "kafka2:9092", "kafka3:9092"]
+  topic: 't_log'
+  partition.round_robin:
+    reachable_only: false
+  required_acks: 1
+  max_message_bytes: 1000000
