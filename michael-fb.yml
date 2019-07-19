@@ -1,15 +1,31 @@
-[root@guru-itg compose]# cat filebeat.yml
-filebeat.inputs:
-- type: log
-  enabled: true
-  paths:
-    - /apache-logs/*_log
-  fields_under_root: true
+
+###############################################################
+IMPORTANT
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[root@guru-itg filebeat]# cat /etc/hosts
+10.1.6.16 kafka1 kafka2 kafka3
+
+
 
 output.kafka:
-  hosts: ["kafka1:9092", "kafka2:9092", "kafka3:9092"]
-  topic: 't_log'
+  hosts: ["10.1.6.16:9092"]
+  topic: 'log_system'
   partition.round_robin:
     reachable_only: false
-  required_acks: 1
-  max_message_bytes: 1000000
+    required_acks: 1
+    max_message_bytes: 1000000
+
+
+
+-rwxr-xr-x. 1 root root  165 Jul 19 07:15 setup.yml
+[root@guru-itg compose]# cat setup.yml
+logging.level: debug
+
+output.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+
+filebeat.config.modules:
+  path: ${path.config}/modules.d/*.yml
+  reload.enabled: false
+
+
