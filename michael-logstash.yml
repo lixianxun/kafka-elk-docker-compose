@@ -1,41 +1,28 @@
+[root@guru-itg compose]# cat kibana.yml
+server.name: kibana
+server.host: "0"
+elasticsearch.url: http://elasticsearch:9200
+xpack.monitoring.ui.container.elasticsearch.enabled: false
+
+[root@guru-itg compose]# cat logstash.conf
 input {
   kafka {
-    bootstrap_servers => "kafka1:9092"
-    client_id => "logstash"
-    group_id => "logstash"
-    consumer_threads => 3
-    topics => ["t_log"]
+    client_id => "c_sys_1"
+    group_id => "c_sys_1"
+    bootstrap_servers => "kafka1:9092,kafka2:9092,kafka3:9092"
+    topics => [ "log_system" ]
     codec => "json"
-    tags => ["log", "kafka_source"]
-    type => "log"
+    auto_offset_reset => "latest"
+    auto_commit_interval_ms => "2000"
+    consumer_threads => 1
   }
 }
-
-filter {
-  if [type] == "apache_access" {
-    grok {
-      match => { "message" => "%{COMMONAPACHELOG}" }
-    }
-    date {
-      match => ["timestamp", "dd/MMM/yyyy:HH:mm:ss Z"]
-      remove_field => ["timestamp"]
-    }
-  }
-  if [type] == "apache_error" {
-    grok {
-      match => { "message" => "%{COMMONAPACHELOG}" }
-    }
-    date {
-      match => ["timestamp", "dd/MMM/yyyy:HH:mm:ss Z"]
-      remove_field => ["timestamp"]
-    }
-  }
-}
-
 output {
   elasticsearch {
-       hosts => ["elasticsearch:9200"]
-       index => "logstash-%{[type]}-%{+YYYY.MM.dd}"
+    id => "es2"
+    hosts => ["elasticsearch:9200"]
+    index => "db_hana_sys_%{+YYYY.MM}"
+    pipeline => "%{[@metadata][pipeline]}"
   }
-  stdout { codec => rubydebug }
 }
+
